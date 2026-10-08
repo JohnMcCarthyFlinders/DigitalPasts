@@ -1,42 +1,48 @@
-# Teach the Machine
+# Digital Pasts: Machine Learning
 
-An interactive workbook for the image-classification tutorial in **ARCH3215 / ARCH8215 Digital Pasts** (Flinders University). Students use Google Teachable Machine in one tab and work through this page in another.
+A one-hour, single-player interactive workbook for the image-classification exercise in **ARCH3215 / ARCH8215 Digital Pasts** (Flinders University). Students work through it at home with Google Teachable Machine open in a second tab.
 
-Everything is in `index.html` (logo, 3D graphics and all text are inside it). There is nothing to install or build.
+Live page: https://johnmccarthyflinders.github.io/DigitalPasts/
+
+Everything is in `index.html` (logo, 3D graphics, illustrations and all text are inside it). There is nothing to install or build.
 
 ## What students do
 
-1. Enter their name, group and date.
-2. Work through 13 stages, with a progress bar and an encouraging message after each one:
-   - Briefing
-   - Part 1: Choose your classification problem
-   - Part 2: Train your first model
-   - Part 3: Give it something new
-   - **Side quest, the mystery tray:** train on two groups of objects, test a few third objects, and see where each one lands on a guess-versus-model chart
-   - Part 4: Test generalisation (correct/incorrect is filled in automatically and tallied)
-   - Part 5: Can you trick the machine?
-   - Part 6: Build a better classifier (compared with the Part 4 tally)
-   - Part 7: Break your classifier
-   - Part 8: From webcam experiments to archaeology
-   - Final reflection
-   - Debrief: what they tried, how it went, and how it could be used in their own work and in the field
-   - Finish: summary, take-home message and key concepts
-3. Save their answers in one of three ways: print or save as PDF, copy all, or download as a text file.
+Students enter their name and date, then work through 11 stages with a progress bar and a short encouraging message after each one:
 
-## Put it on GitHub Pages
+1. Briefing
+2. Part 1: Choose your classification problem
+3. Part 2: Train your first model
+4. Part 3: Give it something new
+5. **Side quest, the mystery tray:** train on two groups of objects, test a few third objects, and see where each lands on a guess-versus-model chart
+6. Part 4: Test generalisation ("Correct?" fills itself in and is tallied)
+7. Part 5: Can you trick the machine?
+8. Part 6: Build a better classifier (compared with the Part 4 tally)
+9. Part 7: Break your classifier
+10. Part 8: From webcam to archaeology (three challenges)
+11. Finish: summary, quiz score, take-home message and key concepts
 
-1. In this repository, open **Settings > Pages**.
-2. Under **Build and deployment**, set Source to **Deploy from a branch**, Branch to **main**, folder **/ (root)**, and save.
-3. After a minute or two the page is at `https://johnmccarthyflinders.github.io/DigitalPasts/`.
+The question mix:
+
+- **12 multiple-choice questions.** These reveal the answer and an explanation as soon as a student picks. The first answer is locked in, so the quiz score reflects first attempts.
+- **3 quick polls** for predictions, such as "how well do you think it will do?".
+- **8 short written answers,** each with a word limit between 40 and 100 words and a live counter. Typing stops at the limit.
+- **Result tables** for recording what the model predicted.
+
+At the end students can print or save a PDF, copy all their answers, or download them as a text file. The export includes their quiz score.
 
 ## Things to know
 
-- **Answers stay on the student's device.** They autosave in the browser (localStorage) and are never sent anywhere. If a student changes computers or clears their browser data, the answers are lost, so remind them to download or print before they leave. On a shared computer, they can use "Clear my answers" on the last page.
-- **Canvas:** link to the GitHub Pages address from a Module or Page. Embedding it may or may not work depending on your Canvas settings.
-- **Teachable Machine** needs camera access and works best in Chrome or Edge on a laptop.
+- **Answers stay on the student's device.** They autosave in the browser and are never sent anywhere. Clearing browser data or switching computers loses them, so students should download or print before they finish. "Clear my answers" on the last page wipes them from a shared computer.
+- **The answers are in the page source.** That suits a formative exercise but not a graded quiz.
+- **Teachable Machine** needs a webcam and works best in Chrome or Edge on a laptop.
 - **Fonts** load from Google Fonts. Offline, the page falls back to system fonts and still works.
-- **Motion:** the 3D banner pauses on a still frame if the student's device has "reduce motion" turned on.
+- **Motion:** the 3D banner shows a still frame if the device has "reduce motion" turned on.
 
 ## Editing the text
 
-All questions, instructions, encouragement messages and glossary entries are in the `CONTENT` block inside `index.html` (search for `const CONTENT`). Each question has an `id`. If you rename an id, any answers students have already saved under the old id will no longer show.
+Questions, options, explanations, word limits and glossary entries are all in the `CONTENT` block inside `index.html` (search for `const CONTENT`).
+
+- **Multiple-choice questions:** `a` is the index of the correct option. A short block after `CONTENT` moves each correct answer to a set position (the `target` list), so the correct letters are spread across A to D.
+- **Word limits:** these are the `cap` values on each `q` block.
+- **Question ids:** renaming an `id` hides any answers students have already saved under the old one.
