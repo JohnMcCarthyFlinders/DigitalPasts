@@ -1,6 +1,6 @@
 # Digital Pasts: Machine Learning
 
-A one-hour, single-player interactive workbook for the image-classification exercise in **ARCH3215 / ARCH8215 Digital Pasts** (Flinders University). Students work through it at home with Google Teachable Machine open in a second tab.
+A one-hour, single-player interactive workbook for the image-classification exercise in **ARCH3215 / ARCH8215 Digital Pasts** (Flinders University). It is written for anyone working with evidence of the past: archaeologists, palaeontologists, curators and heritage practitioners. Students work through it at home with Google Teachable Machine open in a second tab.
 
 Live page: https://johnmccarthyflinders.github.io/DigitalPasts/
 
@@ -19,7 +19,7 @@ Students enter their name and date, then work through 11 stages with a progress 
 7. Part 5: Can you trick the machine?
 8. Part 6: Build a better classifier (compared with the Part 4 tally)
 9. Part 7: Break your classifier
-10. Part 8: From webcam to archaeology (three challenges)
+10. Part 8: From webcam to the deep past (three challenges: a museum ceramics collection, field fragments, and fossil localities)
 11. Finish: summary, quiz score, take-home message and key concepts
 
 The question mix:

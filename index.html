@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Digital Pasts: Machine Learning</title>
-<meta name="description" content="An image-classification lab for archaeology students using Google Teachable Machine. ARCH3215 / ARCH8215 Digital Pasts, Flinders University.">
+<meta name="description" content="An image-classification lab for students of the ancient past, using Google Teachable Machine. ARCH3215 / ARCH8215 Digital Pasts, Flinders University.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
@@ -454,6 +454,48 @@ const GFX = (() => {
     const stand = xform(lathe([[0, -0.42], [0.22, -0.42], [0.22, -0.38], [0.05, -0.3], [0.04, -0.24], [0, -0.24]], 8, () => C.grey), p => p);
     return merge(body, lens, led, stand);
   })();
+  /* T. rex skull: lofted cranium and hinged mandible */
+  function loft(secs, colFn) {
+    const ring = ([, yT, yB, w]) => { const h = yT - yB; return [[yT, 0], [yT - 0.12 * h, 0.42 * w], [yB + 0.45 * h, 0.5 * w], [yB + 0.08 * h, 0.46 * w], [yB, 0.25 * w], [yB, -0.25 * w], [yB + 0.08 * h, -0.46 * w], [yB + 0.45 * h, -0.5 * w], [yT - 0.12 * h, -0.42 * w]]; };
+    const N = 9, v = [], f = [];
+    secs.forEach(sc => ring(sc).forEach(([y, z]) => v.push([sc[0], y, z])));
+    const orient = (t, out) => { const n = cross(sub(v[t[1]], v[t[0]]), sub(v[t[2]], v[t[0]])); if (dot(n, out) < 0) { const q = t[1]; t[1] = t[2]; t[2] = q; } return t; };
+    for (let i = 0; i < secs.length - 1; i++) for (let j = 0; j < N; j++) {
+      const A = i * N + j, B = i * N + (j + 1) % N, C = (i + 1) * N + (j + 1) % N, D = (i + 1) * N + j, col = colFn(i, j);
+      const ym = (secs[i][1] + secs[i][2] + secs[i + 1][1] + secs[i + 1][2]) / 4;
+      [[A, B, C, col], [A, C, D, col]].forEach(t => { const c = [0, 1, 2].map(k => (v[t[0]][k] + v[t[1]][k] + v[t[2]][k]) / 3); f.push(orient(t, [0, c[1] - ym, c[2]])); });
+    }
+    [[0, -1], [secs.length - 1, 1]].forEach(([i, dir]) => {
+      const ci = v.length; v.push([secs[i][0], (secs[i][1] + secs[i][2]) / 2, 0]);
+      for (let j = 0; j < N; j++) f.push(orient([ci, i * N + j, i * N + (j + 1) % N, colFn(i, j + 3)], [dir, 0, 0]));
+    });
+    return finish({ v, f });
+  }
+  const BONE = hex('#d8c59a'), HOLE = hex('#1c140e'), TOOTH = hex('#f5ecd6');
+  const tooth = (x, y, z, len, up) => xform(lathe([[0, 0], [0.032, 0], [0, len]], 4, () => TOOTH), p => [p[0] + x, (up ? p[1] : -p[1]) + y, p[2] + z]);
+  const hole = (x, y, z, sx, sy) => xform(ico(0, HOLE), p => [p[0] * sx + x, p[1] * sy + y, p[2] * 0.03 + z]);
+  M.skull = (function () {
+    const S = [[-0.85, 0.7, 0.1, 0.66], [-0.6, 0.88, 0.04, 0.7], [-0.3, 0.8, 0.02, 0.56], [0, 0.68, 0.02, 0.42], [0.35, 0.58, 0.03, 0.35], [0.7, 0.5, 0.05, 0.31], [0.88, 0.43, 0.08, 0.28], [0.96, 0.31, 0.12, 0.22]];
+    const cr = loft(S, (i, j) => jit(BONE, 0.14, i * 11 + j * 3));
+    const wAt = x => { for (let i = 0; i < S.length - 1; i++) if (x <= S[i + 1][0]) { const k = (x - S[i][0]) / (S[i + 1][0] - S[i][0]); return S[i][3] + (S[i + 1][3] - S[i][3]) * k; } return S[S.length - 1][3]; };
+    const parts = [cr];
+    [1, -1].forEach(sd => {
+      const z = x => sd * (wAt(x) * 0.47 + 0.012);
+      parts.push(hole(-0.42, 0.66, z(-0.42) - sd * 0.03, 0.08, 0.13), hole(0.02, 0.38, z(0.02), 0.2, 0.13), hole(0.8, 0.34, z(0.8), 0.06, 0.05), hole(-0.72, 0.44, z(-0.72), 0.07, 0.16));
+      parts.push(xform(ico(0, jit(BONE, 0.2, sd + 4)), p => [p[0] * 0.09 - 0.3, p[1] * 0.07 + 0.8, p[2] * 0.06 + sd * 0.17]));
+      for (let k = 0; k < 9; k++) { const x = -0.3 + k * 0.14; parts.push(tooth(x, 0.06, sd * wAt(x) * 0.44, 0.1 + (k > 1 && k < 6 ? 0.07 : 0.03), false)); }
+    });
+    const m = merge(...parts); m.flat = true; return m;
+  })();
+  M.jaw = (function () {
+    const S = [[0, 0.02, -0.32, 0.56], [0.4, 0, -0.28, 0.42], [0.9, 0, -0.2, 0.3], [1.3, 0, -0.16, 0.24], [1.66, 0, -0.13, 0.19]];
+    const parts = [loft(S, (i, j) => jit(hex('#cdb98c'), 0.14, i * 7 + j * 5))];
+    [1, -1].forEach(sd => {
+      parts.push(hole(0.25, -0.14, sd * 0.27, 0.12, 0.07));
+      for (let k = 0; k < 8; k++) { const x = 0.55 + k * 0.14, w = 0.42 - (x - 0.4) * 0.2; parts.push(tooth(x, 0, sd * w * 0.3, 0.08 + (k < 4 ? 0.04 : 0.02), true)); }
+    });
+    const m = merge(...parts); m.flat = true; return m;
+  })();
   M.trophy = lathe([[0, 0], [0.34, 0], [0.34, 0.08], [0.14, 0.14], [0.07, 0.42], [0.09, 0.52], [0.36, 0.72], [0.42, 1.02], [0.33, 1.04], [0, 0.88]], 12,
     (i, j) => (i === 1 || i === 2 ? C.navyL : (j % 2 ? C.gold : C.goldD)));
   M.tray = box(2.3, 0.08, 1.1, C.brown);
@@ -487,6 +529,8 @@ const GFX = (() => {
     pair: t => [
       { m: M.plinth, p: [-0.95, 0, 0], ry: 0.2 }, { m: M.plinth, p: [0.95, 0, 0], ry: -0.2 },
       { m: M.shell, p: [-0.95, 0.18, 0], ry: spin(t), s: 1.3 }, { m: M.pebble, p: [0.95, 0.38, 0], ry: -spin(t), s: 1.3 }],
+    trex: t => { const ry = -0.3 + Math.sin(t * 0.45) * 0.5, y = 0.38 + Math.sin(t * 1.3) * 0.05, open = Math.pow(Math.max(0, Math.sin(t * 2.1)), 4) * 0.42;
+      return [{ m: M.skull, p: [-0.05, y, 0], ry, s: 1.3, sh: 0.6 }, { m: M.jaw, p: [-0.05, y, 0], ry, s: 1.3, off: [-0.74, 0.08, 0], rz: -open }]; },
     webcam: t => [{ m: M.cam, p: [-1.0, 0.75, 0.4], ry: 0.9 + Math.sin(t * 0.9) * 0.35, s: 1.2, sh: 0.4 },
       { m: M.plinth, p: [0.9, 0, -0.2] }, { m: M.pot, p: [0.9, 0.18, -0.2], ry: spin(t), s: 0.75 }],
     newthing: t => [{ m: M.pot, p: [-1.1, 0, -0.2], ry: spin(t), s: 0.7, sh: 0.3 }, { m: M.point, p: [1.1, 0.7, -0.2], ry: -spin(t), sh: 0.3 },
@@ -559,8 +603,9 @@ const GFX = (() => {
     for (const o of list) {
       const m = o.m, s = o.s == null ? [1, 1, 1] : (Array.isArray(o.s) ? o.s : [o.s, o.s, o.s]);
       const cy_ = Math.cos(o.ry || 0), sy_ = Math.sin(o.ry || 0), cx_ = Math.cos(o.rx || 0), sx_ = Math.sin(o.rx || 0);
-      const tf = p => { let x = p[0] * s[0], y = p[1] * s[1], z = p[2] * s[2]; let y2 = y * cx_ - z * sx_, z2 = y * sx_ + z * cx_; y = y2; z = z2; const x2 = x * cy_ + z * sy_; z2 = -x * sy_ + z * cy_; return [x2 + o.p[0], y + o.p[1], z2 + o.p[2]]; };
-      const tn = p => { let y = p[1] * cx_ - p[2] * sx_, z = p[1] * sx_ + p[2] * cx_; return [p[0] * cy_ + z * sy_, y, -p[0] * sy_ + z * cy_]; };
+      const cz_ = Math.cos(o.rz || 0), sz_ = Math.sin(o.rz || 0), off = o.off || [0, 0, 0];
+      const tf = p => { let x = p[0] * cz_ - p[1] * sz_ + off[0], y = p[0] * sz_ + p[1] * cz_ + off[1], z = p[2] + off[2]; x *= s[0]; y *= s[1]; z *= s[2]; let y2 = y * cx_ - z * sx_, z2 = y * sx_ + z * cx_; y = y2; z = z2; const x2 = x * cy_ + z * sy_; z2 = -x * sy_ + z * cy_; return [x2 + o.p[0], y + o.p[1], z2 + o.p[2]]; };
+      const tn = q => { const p = [q[0] * cz_ - q[1] * sz_, q[0] * sz_ + q[1] * cz_, q[2]]; let y = p[1] * cx_ - p[2] * sx_, z = p[1] * sx_ + p[2] * cx_; return [p[0] * cy_ + z * sy_, y, -p[0] * sy_ + z * cy_]; };
       const wv = m.v.map(tf), wn = m.vn.map(tn);
       const sv = wv.map(p => { const d = sub(p, cam); const z = dot(d, fw); return { x: Math.round(cx + dot(d, rt) / z * F), y: Math.round(cy - dot(d, up) / z * F), z }; });
       for (const f of m.f) {
@@ -648,6 +693,26 @@ const FIGS = (() => {
     poly([[-10, -20], [8, -21], [2, -10], [-12, -9]], cx, by, s, '#aeb3c1');
   const sherd = (cx, cy, s = 1) =>
     poly([[-14, -10], [12, -14], [16, 8], [-10, 12]], cx, cy, s, '#b8673f', 'stroke="#2a1205" stroke-width="1.5" stroke-linejoin="round"') + poly([[-14, -10], [12, -14], [10, -8], [-12, -5]], cx, cy, s, '#d98b62');
+  const ammonite = (cx, cy, s = 1, part = 1) => {
+    // coiled shell: body disc, spiral line and ribs; part<1 draws a broken fragment
+    let g = '', r = 24 * s;
+    const clip = part < 1 ? `clip-path="url(#amc${Math.round(cx)}_${Math.round(cy)})"` : '';
+    if (part < 1) g += `<defs><clipPath id="amc${Math.round(cx)}_${Math.round(cy)}"><polygon points="${cx - r - 2},${cy - r - 2} ${cx + r * 0.4},${cy - r - 2} ${cx - r * 0.1},${cy + r * 0.2} ${cx + r * 0.3},${cy + r + 2} ${cx - r - 2},${cy + r + 2}"/></clipPath></defs>`;
+    g += `<g ${clip}><circle cx="${cx}" cy="${cy}" r="${r}" fill="#b8a27a" stroke="#2b2416" stroke-width="1.5"/>`;
+    let d = '', a = 0, rr = r * 0.92; d += `M${cx + rr},${cy}`;
+    for (let k = 1; k <= 60; k++) { a = k * 0.32; rr = r * 0.92 * Math.exp(-a / 7.5); d += ` L${(cx + Math.cos(a) * rr).toFixed(1)},${(cy + Math.sin(a) * rr).toFixed(1)}`; }
+    g += `<path d="${d}" fill="none" stroke="#5c4a2c" stroke-width="${1.6 * s}"/>`;
+    for (let k = 0; k < 18; k++) { const t = k / 18 * Math.PI * 2; g += `<line x1="${(cx + Math.cos(t) * r * 0.62).toFixed(1)}" y1="${(cy + Math.sin(t) * r * 0.62).toFixed(1)}" x2="${(cx + Math.cos(t) * r * 0.97).toFixed(1)}" y2="${(cy + Math.sin(t) * r * 0.97).toFixed(1)}" stroke="#7d6a46" stroke-width="${1.2 * s}"/>`; }
+    return g + `<circle cx="${cx - r * 0.3}" cy="${cy - r * 0.35}" r="${r * 0.18}" fill="#d9c79f" opacity=".6"/></g>`;
+  };
+  const bone = (cx, cy, s = 1, broken = false) => {
+    const L = 26 * s, w = 5 * s, k = 7 * s;
+    let g = `<rect x="${cx - L}" y="${cy - w}" width="${broken ? L * 1.1 : 2 * L}" height="${2 * w}" fill="#e9ddc0" stroke="#3a2f1c" stroke-width="1.5"/>`;
+    g += `<circle cx="${cx - L}" cy="${cy - w}" r="${k}" fill="#e9ddc0" stroke="#3a2f1c" stroke-width="1.5"/><circle cx="${cx - L}" cy="${cy + w}" r="${k}" fill="#e9ddc0" stroke="#3a2f1c" stroke-width="1.5"/>`;
+    if (!broken) g += `<circle cx="${cx + L}" cy="${cy - w}" r="${k}" fill="#e9ddc0" stroke="#3a2f1c" stroke-width="1.5"/><circle cx="${cx + L}" cy="${cy + w}" r="${k}" fill="#e9ddc0" stroke="#3a2f1c" stroke-width="1.5"/>`;
+    else g += `<polygon points="${cx + L * 0.1},${cy - w} ${cx + L * 0.25},${cy - w * 0.2} ${cx + L * 0.05},${cy + w * 0.3} ${cx + L * 0.2},${cy + w}" fill="#e9ddc0" stroke="#3a2f1c" stroke-width="1.5"/>`;
+    return g + `<rect x="${cx - L * 0.8}" y="${cy - w * 0.6}" width="${L * 1.0}" height="${w * 0.5}" fill="#fff6e0" opacity=".6"/>`;
+  };
   const qmark = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="18" fill="#0b1130" stroke="#ffd300" stroke-width="3"/>` + txt(cx, cy + 8, '?', { size: 24, fill: '#ffd300' });
   const card = (x, y, w, h, bg, inner = '', label = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${bg}" stroke="#e3e8f6" stroke-width="2"/>${inner}${label ? txt(x + w / 2, y + h + 16, label, { size: 12, fill: '#bcc5e0' }) : ''}`;
   const arrow = (x1, y, x2, col = '#ffd300') => `<line x1="${x1}" y1="${y}" x2="${x2 - 8}" y2="${y}" stroke="${col}" stroke-width="4"/><polygon points="${x2},${y} ${x2 - 12},${y - 8} ${x2 - 12},${y + 8}" fill="${col}"/>`;
@@ -717,15 +782,20 @@ const FIGS = (() => {
     svg: svg(176, txt(150, 18, 'MUSEUM A · TYPE A', { size: 13, fill: '#ffd300' }) + [0, 1, 2].map(i => card(40 + i * 76, 30, 66, 96, '#15171f', pot(73 + i * 76, 116, 1.05))).join('') +
       txt(470, 18, 'MUSEUM B · TYPE B', { size: 13, fill: '#6ad1ff' }) + [0, 1, 2].map(i => card(360 + i * 76, 30, 66, 96, '#e4e6ec', jar(393 + i * 76, 100, 1.05))).join('') +
       txt(320, 160, 'Model accuracy: 99% … but at telling what apart?', { size: 14, b: 1, fill: '#f3f5fb' }), 'Type A pots on black backgrounds, Type B jars on white backgrounds') };
-  D.fragments = { cap: 'Trained on whole museum pots, tested on small weathered sherds in the field. The features it learned (profile, handles, neck) may be missing entirely.',
-    svg: svg(176, txt(130, 18, 'TRAINING: MUSEUM', { size: 13, fill: '#ffd300' }) + [0, 1, 2].map(i => card(20 + i * 76, 30, 66, 100, '#2a3566', pot(53 + i * 76, 118, 1.1))).join('') +
-      arrow(262, 80, 330) + txt(470, 18, 'APPLIED TO: EXCAVATION', { size: 13, fill: '#6ad1ff' }) +
-      [0, 1, 2].map(i => sediment(344 + i * 96, 30, 86, 100) + `<g opacity=".85">${sherd(387 + i * 96, 80, [0.8, 0.6, 0.9][i])}</g>`).join('') +
-      txt(320, 160, 'Same type of pottery, very different-looking images', { size: 14, b: 1 }), 'Whole museum pots compared with weathered sherds from excavation') };
-  D.scalebar = { cap: 'Each site was photographed differently. Scale bar, no scale bar, or sediment can be enough for a model to tell the sites apart without looking at the artefacts at all.',
-    svg: svg(176, card(30, 20, 170, 120, '#e4e6ec', point(115, 72, 1.2) + scalebar(70, 122, 90)) + txt(115, 160, 'SITE A · SCALE BAR', { size: 12, fill: '#bcc5e0' }) +
-      card(235, 20, 170, 120, '#e4e6ec', point(320, 78, 1.2)) + txt(320, 160, 'SITE B · NO SCALE', { size: 12, fill: '#bcc5e0' }) +
-      sediment(440, 20, 170, 120) + point(525, 80, 1.2) + txt(525, 160, 'SITE C · ON SEDIMENT', { size: 12, fill: '#bcc5e0' }), 'Stone points photographed three different ways at three sites') };
+  D.fragments = { cap: 'Trained on whole museum specimens, then used on small weathered fragments from the field. The features it learned (complete outlines, rims and handles, bone ends, the full coil of a shell) may be missing entirely.',
+    svg: svg(176, txt(130, 18, 'TRAINING: MUSEUM', { size: 13, fill: '#ffd300' }) +
+      card(20, 30, 66, 100, '#2a3566', pot(53, 118, 1.1)) + card(96, 30, 66, 100, '#2a3566', `<g transform="rotate(-60 129 80)">${bone(129, 80, 0.95)}</g>`) + card(172, 30, 66, 100, '#2a3566', ammonite(205, 80, 1.15)) +
+      arrow(262, 80, 330) + txt(470, 18, 'APPLIED TO: FIELD MATERIAL', { size: 13, fill: '#6ad1ff' }) +
+      sediment(344, 30, 86, 100) + `<g opacity=".88">${sherd(387, 80, 0.8)}</g>` +
+      sediment(440, 30, 86, 100) + `<g opacity=".85" transform="rotate(25 483 80)">${bone(483, 80, 0.6, true)}</g>` +
+      sediment(536, 30, 86, 100) + `<g opacity=".85">${ammonite(579, 82, 0.8, 0.5)}</g>` +
+      txt(320, 160, 'Same kinds of specimen, very different-looking images', { size: 14, b: 1 }), 'Whole museum specimens compared with weathered fragments from the field') };
+  D.scalebar = { cap: 'Each locality was photographed differently. A scale bar, no scale bar, or rock matrix can be enough for a model to tell the localities apart without looking at the fossils at all.',
+    svg: svg(176, card(30, 20, 170, 120, '#e4e6ec', ammonite(115, 72, 1.25) + scalebar(70, 122, 90)) + txt(115, 160, 'LOCALITY A · SCALE BAR', { size: 12, fill: '#bcc5e0' }) +
+      card(235, 20, 170, 120, '#e4e6ec', ammonite(320, 80, 1.25)) + txt(320, 160, 'LOCALITY B · NO SCALE', { size: 12, fill: '#bcc5e0' }) +
+      `<rect x="440" y="20" width="170" height="120" rx="5" fill="#8a8578" stroke="#e3e8f6" stroke-width="2"/>` + Array.from({ length: 30 }, (_, i) => `<rect x="${446 + (i * 41) % 156}" y="${26 + (i * 29) % 106}" width="${3 + i % 4}" height="${2 + i % 3}" fill="${i % 2 ? '#6f6a5e' : '#a29c8e'}"/>`).join('') +
+      `<g opacity=".92">${ammonite(525, 84, 1.25, 0.6)}</g><polygon points="${525 - 2},${60} ${555},${70} ${560},${110} ${530},${112}" fill="#8a8578" opacity=".9"/>` +
+      txt(525, 160, 'LOCALITY C · IN MATRIX', { size: 12, fill: '#bcc5e0' }), 'Ammonite fossils photographed three different ways at three localities') };
   return D;
 })();
 
@@ -742,9 +812,9 @@ const CONTENT = {
     { id: 'start', short: 'Start', scene: 'title' },
     {
       id: 'brief', short: 'Briefing', kicker: 'Mission briefing', title: 'What you are investigating', scene: 'crystal',
-      cheer: 'Let’s go, {name}. Machines learn from examples, and so do archaeologists.',
+      cheer: 'Let’s go, {name}. Machines learn from examples, and so do researchers.',
       blocks: [
-        { t: 'p', text: 'Machine learning is increasingly used to identify, classify and analyse archaeological materials, from artefacts and ceramics to imagery, landscapes and remote-sensing data. In this lab you will build an image classifier with Google Teachable Machine, on your own, at home. No programming is required.' },
+        { t: 'p', text: 'Machine learning is increasingly used to identify, classify and analyse evidence of the past: artefacts and ceramics, fossils and bones, museum and archive collections, imagery, landscapes and remote-sensing data. In this lab you will build an image classifier with Google Teachable Machine, on your own, at home. No programming is required.' },
         { t: 'fig', name: 'pipeline' },
         { t: 'p', text: 'Your goal is not simply to make an accurate classifier. You will find out what it really learns, how it copes with things it has never seen, and why it can be confidently wrong.' },
         { t: 'howto' },
@@ -764,7 +834,7 @@ const CONTENT = {
       ]
     },
     {
-      id: 'p2', short: 'Part 2', kicker: 'Part 2', title: 'Train your first model', scene: 'webcam',
+      id: 'p2', short: 'Part 2', kicker: 'Part 2', title: 'Train your first model', scene: 'trex',
       cheer: 'First model trained! You are officially a machine-learning practitioner, {name}.',
       blocks: [
         { t: 'steps', items: ['Open Teachable Machine and choose <b>Get Started › Image Project › Standard image model</b>.', 'Rename the two classes to match yours.', 'Capture about <b>50–100 images</b> of each class with your webcam. For this first try, keep the conditions fairly consistent.', 'Select <b>Train Model</b>.'] },
@@ -784,9 +854,9 @@ const CONTENT = {
         { t: 'mcq', id: 'm_forced', fig: 'forced', q: 'Your model said it was very confident about the new object. Does that mean the prediction was correct?',
           opts: ['Yes, high confidence means it recognised the object', 'No, confidence only says how strongly it prefers one of the classes it knows', 'Yes, as long as the confidence is above 50%', 'No, Teachable Machine confidence scores are random'], a: 1,
           why: 'The model was only ever asked “Is this A or B?” It cannot answer “neither”, so an unfamiliar object still gets split between A and B, sometimes with very high confidence.' },
-        { t: 'mcq', id: 'm_amph', q: 'A model trained on Roman vs Greek amphorae is shown a Phoenician amphora. What will it most likely do?',
-          opts: ['Flag it as unknown', 'Refuse to give an answer', 'Label it Roman or Greek, possibly with high confidence', 'Create a new “Phoenician” class'], a: 2,
-          why: 'A two-class model has no way to say “none of these”. In real assemblages, things outside your categories turn up all the time, and they will be quietly forced into the wrong box.' }
+        { t: 'mcq', id: 'm_teeth', q: 'A model trained to tell <i>Tyrannosaurus</i> teeth from crocodile teeth is shown a shark tooth from the same deposit. What will it most likely do?',
+          opts: ['Flag it as unknown', 'Refuse to give an answer', 'Label it <i>Tyrannosaurus</i> or crocodile, possibly with high confidence', 'Create a new “shark” class'], a: 2,
+          why: 'A two-class model has no way to say “none of these”. In real deposits, assemblages and collections, things outside your categories turn up all the time, and they will be quietly forced into the wrong box.' }
       ]
     },
     {
@@ -805,8 +875,8 @@ const CONTENT = {
         { t: 'table', id: 'tt', label: 'Third objects', dl: 'tray', rows: 4, cols: [['Third object', 'text'], ['Your guess', 'guess'], ['Model said', 'class'], ['Confidence', 'pct']] },
         { t: 'spectrum', table: 'tt' },
         { t: 'q', id: 'tray_how', label: 'What did you try, and how did it go? Which object surprised you most, and why?', cap: 100 },
-        { t: 'mcq', id: 'm_unknown', fig: 'threshold', q: 'Archaeologists often meet finds that fit none of their categories. What is the most sensible way to use a classifier on real material?',
-          opts: ['Trust any prediction above 50%', 'Add more images of the two classes until it is always confident', 'Add a varied “other” class and send low-confidence results to a specialist', 'Avoid machine learning for archaeology altogether'], a: 2,
+        { t: 'mcq', id: 'm_unknown', fig: 'threshold', q: 'Archaeologists, palaeontologists and curators all meet specimens that fit none of their categories. What is the most sensible way to use a classifier on real material?',
+          opts: ['Trust any prediction above 50%', 'Add more images of the two classes until it is always confident', 'Add a varied “other” class and send low-confidence results to a specialist', 'Avoid machine learning for this kind of work altogether'], a: 2,
           why: 'A model that can say “other”, plus a confidence threshold for human review, uses the machine for the easy cases and keeps experts on the hard ones. More images of the same two classes does nothing for objects outside them.' }
       ]
     },
@@ -870,23 +940,23 @@ const CONTENT = {
       ]
     },
     {
-      id: 'p8', short: 'Part 8', kicker: 'Part 8', title: 'From webcam to archaeology', scene: 'arch',
+      id: 'p8', short: 'Part 8', kicker: 'Part 8', title: 'From webcam to the deep past', scene: 'arch',
       cheer: 'Lab complete! Brilliant work, {name}.',
       blocks: [
-        { t: 'p', text: 'Now apply the same ideas to pottery, stone artefacts, animal bones, shell, rock-art motifs, raw materials, site types or archaeological imagery.' },
+        { t: 'p', text: 'Now apply the same ideas to real evidence of the past: artefacts, fossils, bones and shell, rock art, museum and archive collections, historic photographs or remote-sensing imagery.' },
         { t: 'challenge', n: 1, title: 'Training data', text: 'All examples of Ceramic Type A come from Museum A and were photographed against a black background. All examples of Type B come from Museum B and were photographed against a white background. The model reports 99% accuracy.' },
         { t: 'mcq', id: 'c1', fig: 'museum', q: 'Would you trust the 99%?',
           opts: ['Yes, 99% is excellent', 'Not yet: museum, background and type all line up, so it may be classifying backgrounds. Test on Type A on white and Type B on black.', 'No, accuracy can never be trusted', 'Yes, as long as there were over 1,000 images'], a: 1,
           why: 'This is Part 5 in a museum. Until the model is tested on images where background and museum no longer match the type, you cannot tell whether it learned anything about the ceramics.' },
-        { t: 'challenge', n: 2, title: 'Generalisation', text: 'A classifier is trained on complete, well-preserved artefacts from a museum collection and then applied to newly excavated material, mostly small, weathered fragments.' },
+        { t: 'challenge', n: 2, title: 'Generalisation', text: 'A classifier is trained on complete, well-preserved specimens from a museum collection (pots, bones, ammonites) and then applied to newly collected field material, mostly small, weathered fragments.' },
         { t: 'mcq', id: 'c2', fig: 'fragments', q: 'What is the main problem, and the best fix?',
-          opts: ['No problem: pottery is pottery', 'The training images don’t represent fragments. Add broken, weathered and partial examples and test on held-out excavated material.', 'The museum photos are too high quality, so blur them all', 'Fragments are too small for machine learning'], a: 1,
-          why: 'The model learned from features like whole profiles, handles and necks that fragments rarely show. Training data needs to look like the material it will be used on.' },
-        { t: 'challenge', n: 3, title: 'What is the model really learning?', text: 'A model accurately predicts which of three sites stone artefacts came from. Site A artefacts were photographed with a scale bar, Site B artefacts without one, and Site C artefacts while still sitting on sediment.' },
-        { t: 'mcq', id: 'c3', fig: 'scalebar', q: 'Has the model necessarily discovered archaeological differences between the assemblages?',
-          opts: ['Yes, it predicts the sites accurately', 'No: the recording method differs by site, so the scale bar or sediment alone could identify the site', 'Yes, stone tools from different sites always look different', 'No, three classes is too many'], a: 1,
-          why: 'Photography, recording and preservation can all become part of the dataset. The model may be statistically powerful but archaeologically meaningless until those confounds are removed.' },
-        { t: 'q', id: 'own_use', label: 'Last one: how could image classification be useful in your own work or in archaeology, and what would you watch out for?', cap: 100 }
+          opts: ['No problem: a specimen is a specimen', 'The training images don’t represent fragments. Add broken, weathered and partial examples and test on held-out field material.', 'The museum photos are too high quality, so blur them all', 'Fragments are too small for machine learning'], a: 1,
+          why: 'The model learned from whole outlines and diagnostic features (rims and handles, complete bone ends, the full coil of a shell) that fragments rarely show. Training data needs to look like the material it will be used on.' },
+        { t: 'challenge', n: 3, title: 'What is the model really learning?', text: 'A model accurately predicts which of three fossil localities specimens came from. Locality A specimens were photographed with a scale bar, Locality B specimens without one, and Locality C specimens while still partly in the rock matrix.' },
+        { t: 'mcq', id: 'c3', fig: 'scalebar', q: 'Has the model necessarily discovered real differences between the fossils from each locality?',
+          opts: ['Yes, it predicts the localities accurately', 'No: the recording method differs by locality, so the scale bar or matrix alone could identify it', 'Yes, fossils from different localities always look different', 'No, three classes is too many'], a: 1,
+          why: 'Photography, recording and preservation can all become part of the dataset. The same is true of excavated assemblages, museum collections and archives. The model may be statistically powerful but meaningless for the past until those confounds are removed.' },
+        { t: 'q', id: 'own_use', label: 'Last one: how could image classification be useful in your own work or field (archaeology, palaeontology, collections, heritage or elsewhere), and what would you watch out for?', cap: 100 }
       ]
     },
     { id: 'end', short: 'Finish', scene: 'trophy' }
@@ -904,14 +974,14 @@ const CONTENT = {
     ['Confidence', 'How strongly the model favours one available classification, not a guarantee that it is correct.']
   ],
   takeHome: [
-    'Machine learning does not automatically learn the concept that the researcher has in mind. A classifier learns patterns from the examples provided to it. In archaeology, site, collection, preservation, recording method, photography, excavation history and sampling can all become part of the dataset. A classifier may therefore learn patterns that are statistically powerful but archaeologically meaningless.',
-    'The challenge is not simply to build a classifier that works. It is to demonstrate that it works for the archaeological reasons we think it does.'
+    'Machine learning does not automatically learn the concept that the researcher has in mind. A classifier learns patterns from the examples provided to it. In archaeology, palaeontology and collections work, site or locality, collection, preservation, recording method, photography, excavation or collection history and sampling can all become part of the dataset. A classifier may therefore learn patterns that are statistically powerful but meaningless for understanding the past.',
+    'The challenge is not simply to build a classifier that works. It is to demonstrate that it works for the reasons we think it does.'
   ],
   emptyNote: ['One question is still unanswered. You can come back to it any time.', '{n} questions are still unanswered. You can come back to them any time.']
 };
 /* Spread correct answers across positions so the letter can't be guessed. */
 (() => {
-  const target = { m_pixels: 2, m_forced: 0, m_amph: 3, m_unknown: 1, m_irrelevant: 3, m_shortcut: 0, m_looked: 2, m_eval: 1, m_variety: 0, c1: 2, c2: 1, c3: 0 };
+  const target = { m_pixels: 2, m_forced: 0, m_teeth: 3, m_unknown: 1, m_irrelevant: 3, m_shortcut: 0, m_looked: 2, m_eval: 1, m_variety: 0, c1: 2, c2: 1, c3: 0 };
   CONTENT.pages.forEach(p => (p.blocks || []).forEach(b => {
     if (b.t !== 'mcq' || target[b.id] == null) return;
     const right = b.opts[b.a], rest = b.opts.filter((_, i) => i !== b.a);
@@ -1210,7 +1280,7 @@ const CONTENT = {
     const sc = r => { const y = r.filter(x => x === 'Yes').length, n = r.filter(x => x === 'No').length; return y + n ? `${Math.round(y / (y + n) * 100)}%` : '—'; };
     const list = P.slice(1, LAST).map((p, k) => { const i = k + 1, s = pageStats(i); if (!s.total) return ''; const full = s.done === s.total; return `<li><button type="button" data-go="${i}"><span>${esc(p.short)} · ${esc(p.title)}</span><span class="${full ? 'ok' : 'part'}">${full ? '✓' : `${s.done}/${s.total}`}</span></button></li>`; }).join('');
     return `<section class="win"><h3>Great work, ${esc(first())}!</h3>
-      <p class="lead">You trained a classifier, tested it on things it had never seen, tricked it, rebuilt it and broke it again. That is the full cycle of evaluating a machine-learning model, and it is exactly the scepticism archaeology needs.</p>
+      <p class="lead">You trained a classifier, tested it on things it had never seen, tricked it, rebuilt it and broke it again. That is the full cycle of evaluating a machine-learning model, and it is exactly the scepticism that any study of the past needs.</p>
       <div class="stats"><div class="stat"><b>${a.done}/${a.total}</b><span>questions answered</span></div><div class="stat"><b>${qz.ok}/${qz.n}</b><span>quiz questions right first time</span></div><div class="stat"><b>${sc(t4)} → ${sc(t6)}</b><span>accuracy: original model (Part 4) → improved model (Part 6)</span></div></div>
       ${a.done < a.total ? `<p style="margin-top:12px">Anything still to fill in? Jump straight to it:</p>` : `<p style="margin-top:12px">Every question answered. Superb.</p>`}
       <ul class="checklist">${list}</ul></section>
